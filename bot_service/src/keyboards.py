@@ -26,3 +26,26 @@ def export_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text='⬅️ Назад', callback_data='main')],
         ]
     )
+
+
+def account_actions_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='➕ Загрузить аккаунт', callback_data='act_upload_account')],
+            [InlineKeyboardButton(text='🌐 Установить прокси', callback_data='act_set_proxy')],
+            [InlineKeyboardButton(text='⚖️ Установить лимит', callback_data='act_set_limit')],
+            [InlineKeyboardButton(text='😴 Отправить в SLEEP', callback_data='act_sleep_account')],
+            [InlineKeyboardButton(text='💾 Отметить backup', callback_data='act_mark_backup')],
+            [InlineKeyboardButton(text='⬅️ Назад', callback_data='main')],
+        ]
+    )
+
+
+def group_actions_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='➕ Добавить reference', callback_data='act_add_group_reference')],
+            [InlineKeyboardButton(text='➕ Добавить monitor', callback_data='act_add_group_monitor')],
+            [InlineKeyboardButton(text='⬅️ Назад', callback_data='main')],
+        ]
+    )
