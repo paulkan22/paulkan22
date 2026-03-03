@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from .admin_commands import parse_set_limit_command, parse_sleep_command
 from .group_commands import extract_chat_identifier, parse_add_group_command, parse_proxy_value
-from .keyboards import export_menu, main_menu
+from .keyboards import account_actions_menu, export_menu, group_actions_menu, main_menu
 from .services import BotDataService
 from .state import SystemStateStore
 from .upload_flow import UploadState, load_metadata_json, sanitize_filename
@@ -15,7 +15,7 @@ def build_router(service: BotDataService, system_state: SystemStateStore) -> Rou
     router = Router()
     uploads: dict[int, UploadState] = {}
 
-    @router.message(F.text == '/start')
+    @router.message(F.text.in_({'/start', '/menu'}))
     async def start(message: Message) -> None:
         await message.answer('Панель управления системой', reply_markup=main_menu())
 
@@ -166,8 +166,8 @@ def build_router(service: BotDataService, system_state: SystemStateStore) -> Rou
                 f"#{r['id']} {r['status']} | limit={r['dynamic_limit']} trust={r['trust_score']} cluster={r['cluster_id']}"
                 for r in rows
             )
-        text += '\n\nКоманды: /set_limit <account_id> <40..150>, /sleep_account <account_id> <minutes>, /set_proxy <account_id> <ip:port:login:password>, /add_group <reference|monitor> <link_or_id> [cluster_id], /upload_account'
-        await callback.message.edit_text(text, reply_markup=main_menu())
+        text += '\n\nВыберите действие кнопками ниже или используйте команды вручную.'
+        await callback.message.edit_text(text, reply_markup=account_actions_menu())
         await callback.answer()
 
     @router.callback_query(F.data == 'groups')
@@ -180,7 +180,42 @@ def build_router(service: BotDataService, system_state: SystemStateStore) -> Rou
                 f"{r['type']} | {r['title'] or '-'} | {r['group_id']} | cluster={r['cluster_id']} | {r['status'] or '-'}"
                 for r in rows[:20]
             )
-        await callback.message.edit_text(text, reply_markup=main_menu())
+        await callback.message.edit_text(text, reply_markup=group_actions_menu())
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_upload_account')
+    async def act_upload_account(callback: CallbackQuery) -> None:
+        await callback.message.answer('Команда загрузки аккаунта: /upload_account')
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_set_proxy')
+    async def act_set_proxy(callback: CallbackQuery) -> None:
+        await callback.message.answer('Формат: /set_proxy <account_id> <ip:port:login:password>')
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_set_limit')
+    async def act_set_limit(callback: CallbackQuery) -> None:
+        await callback.message.answer('Формат: /set_limit <account_id> <40..150>')
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_sleep_account')
+    async def act_sleep_account(callback: CallbackQuery) -> None:
+        await callback.message.answer('Формат: /sleep_account <account_id> <minutes>')
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_mark_backup')
+    async def act_mark_backup(callback: CallbackQuery) -> None:
+        await callback.message.answer('Формат: /mark_backup <optional_note>')
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_add_group_reference')
+    async def act_add_group_reference(callback: CallbackQuery) -> None:
+        await callback.message.answer('Формат: /add_group reference <link_or_id> [cluster_id]')
+        await callback.answer()
+
+    @router.callback_query(F.data == 'act_add_group_monitor')
+    async def act_add_group_monitor(callback: CallbackQuery) -> None:
+        await callback.message.answer('Формат: /add_group monitor <link_or_id> [cluster_id]')
         await callback.answer()
 
     @router.callback_query(F.data == 'export_menu')
