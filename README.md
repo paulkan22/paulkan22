@@ -23,7 +23,8 @@ Production-safe system for collecting leads from Telegram monitor groups, enrich
 - Ranking helpers (`cold/warm/hot/very_hot`, `reference_density`)
 - Monitor chatter heuristics module (open members vs hidden members parse strategy)
 - Telethon mutual engine mode (`TELETHON_MODE=live`) + safe mock fallback mode
-- Background monitor-ingestion loop that enqueues mutual tasks from monitor groups
+- Background monitor-ingestion loop that enqueues mutual tasks from monitor groups (mock/live source modes)
+- Automated backup loop with DB-tracked backup runs
 
 ### Infrastructure
 - Docker Compose with `postgres`, `redis`, `bot_service`, `core_service`
@@ -34,8 +35,7 @@ Production-safe system for collecting leads from Telegram monitor groups, enrich
 ## 2) What is still pending for full production completion
 
 - Production hardening for live Telethon mode (session health checks, retry matrix, richer flood taxonomies)
-- Real monitor collectors for Telegram groups (instead of synthetic source in ingestion loop)
-- Automated backup executor (current implementation tracks backup runs in DB)
+- Production hardening for monitor live collector throughput and anti-flood distribution tuning
 
 ---
 

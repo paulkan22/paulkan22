@@ -156,3 +156,19 @@ async def sync_account_runtime(
     await session.execute(stmt)
 
 
+
+
+async def record_backup_run(session: AsyncSession, status: str, note: str | None = None) -> None:
+    await session.execute(
+        text('INSERT INTO backup_runs (status, note) VALUES (:status, :note)'),
+        {'status': status, 'note': note},
+    )
+
+
+async def record_audit_log(session: AsyncSession, actor_user_id: int, action: str, details_json: str = '{}') -> None:
+    await session.execute(
+        text(
+            'INSERT INTO audit_logs (actor_user_id, action, details) VALUES (:actor_user_id, :action, CAST(:details AS JSONB))'
+        ),
+        {'actor_user_id': actor_user_id, 'action': action, 'details': details_json},
+    )

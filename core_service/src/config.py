@@ -21,5 +21,10 @@ class Settings(BaseSettings):
     cooldown_max_minutes: int = 30
 
     telethon_mode: str = 'mock'  # mock | live
+    monitor_source_mode: str = 'mock'  # mock | live
+
+    backup_enabled: bool = True
+    backup_every_hours: int = 24
+    backup_output_dir: str = 'data/backups'
 
     worker_tick_seconds: int = Field(default=5, ge=1)
