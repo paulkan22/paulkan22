@@ -77,6 +77,39 @@ class BotDataService:
             await session.execute(query, {'sleep_until': sleep_until, 'account_id': account_id})
             await session.commit()
 
+
+    async def set_account_proxy(self, account_id: int, proxy_url: str) -> None:
+        query = text(
+            "UPDATE accounts SET proxy = :proxy WHERE id = :account_id"
+        )
+        async with self.session_factory() as session:
+            await session.execute(query, {'proxy': proxy_url, 'account_id': account_id})
+            await session.commit()
+
+    async def upsert_group(self, group_id: int, title: str | None, group_type: str, cluster_id: int | None) -> None:
+        query = text(
+            """
+            INSERT INTO groups (group_id, title, type, status, cluster_id, last_checked, last_scraped)
+            VALUES (:group_id, :title, :type, 'OPEN', :cluster_id, NULL, NULL)
+            ON CONFLICT (group_id)
+            DO UPDATE SET
+                title = EXCLUDED.title,
+                type = EXCLUDED.type,
+                cluster_id = EXCLUDED.cluster_id
+            """
+        )
+        async with self.session_factory() as session:
+            await session.execute(
+                query,
+                {
+                    'group_id': int(group_id),
+                    'title': title,
+                    'type': group_type,
+                    'cluster_id': cluster_id,
+                },
+            )
+            await session.commit()
+
     async def register_account_package(self, session_path: str, metadata: dict) -> None:
         payload = AccountMetadata.from_dict(metadata)
         query = text(

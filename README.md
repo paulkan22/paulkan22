@@ -11,7 +11,8 @@ Production-safe system for collecting leads from Telegram monitor groups, enrich
 - Whitelist access control
 - Sections: stats, accounts list, groups list, exports (7/30/hot)
 - Redis-backed RUNNING/STOPPED state switches (`▶️ Старт`, `🛑 Стоп`)
-- Manual balancer commands: `/set_limit`, `/sleep_account`
+- Manual balancer commands: `/set_limit`, `/sleep_account`, `/set_proxy`
+- Group onboarding command: `/add_group <reference|monitor> <link_or_id> [cluster_id]`
 - Account metadata validation model for onboarding packages
 - File-based account onboarding flow via `/upload_account` (`.session` + `.json`)
 - XLSX export generation via `openpyxl`

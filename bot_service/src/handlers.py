@@ -4,6 +4,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from .admin_commands import parse_set_limit_command, parse_sleep_command
+from .group_commands import extract_chat_identifier, parse_add_group_command, parse_proxy_value
 from .keyboards import export_menu, main_menu
 from .services import BotDataService
 from .state import SystemStateStore
@@ -78,6 +79,42 @@ def build_router(service: BotDataService, system_state: SystemStateStore) -> Rou
             await service.log_action(message.from_user.id, 'mark_backup', '{"note":"%s"}' % (note or ''))
         await message.answer('Backup run marked in DB.')
 
+
+    @router.message(F.text.startswith('/set_proxy'))
+    async def set_proxy(message: Message) -> None:
+        try:
+            parts = (message.text or '').split(maxsplit=2)
+            if len(parts) != 3:
+                raise ValueError('Usage: /set_proxy <account_id> <ip:port:login:password>')
+            _, account_id_raw, proxy_raw = parts
+            account_id = int(account_id_raw)
+            proxy_url = parse_proxy_value(proxy_raw)
+            await service.set_account_proxy(account_id, proxy_url)
+            if message.from_user:
+                await service.log_action(message.from_user.id, 'set_proxy', '{"account_id":%d}' % account_id)
+            await message.answer(f'Прокси для аккаунта #{account_id} обновлён.')
+        except Exception as exc:
+            await message.answer(str(exc))
+
+    @router.message(F.text.startswith('/add_group'))
+    async def add_group(message: Message) -> None:
+        try:
+            group_type, group_ref, cluster_id = parse_add_group_command(message.text or '')
+            chat_identifier = extract_chat_identifier(group_ref)
+            chat = await message.bot.get_chat(chat_identifier)
+            group_id = int(chat.id)
+            title = chat.title or chat.username or str(group_id)
+            await service.upsert_group(group_id, title, group_type, cluster_id)
+            if message.from_user:
+                await service.log_action(
+                    message.from_user.id,
+                    'add_group',
+                    '{"group_id":%d,"type":"%s"}' % (group_id, group_type),
+                )
+            await message.answer(f'Группа добавлена/обновлена: {title} ({group_type}) id={group_id}')
+        except Exception as exc:
+            await message.answer(f'Ошибка add_group: {exc}')
+
     @router.message(F.text.startswith('/set_limit'))
     async def set_limit(message: Message) -> None:
         try:
@@ -129,7 +166,7 @@ def build_router(service: BotDataService, system_state: SystemStateStore) -> Rou
                 f"#{r['id']} {r['status']} | limit={r['dynamic_limit']} trust={r['trust_score']} cluster={r['cluster_id']}"
                 for r in rows
             )
-        text += '\n\nКоманды: /set_limit <account_id> <40..150>, /sleep_account <account_id> <minutes>, /upload_account'
+        text += '\n\nКоманды: /set_limit <account_id> <40..150>, /sleep_account <account_id> <minutes>, /set_proxy <account_id> <ip:port:login:password>, /add_group <reference|monitor> <link_or_id> [cluster_id], /upload_account'
         await callback.message.edit_text(text, reply_markup=main_menu())
         await callback.answer()
 
@@ -193,7 +230,7 @@ def build_router(service: BotDataService, system_state: SystemStateStore) -> Rou
                 f"#{r['id']} {r['status']} | limit={r['dynamic_limit']} trust={r['trust_score']} sleep={r['sleep_until']}"
                 for r in rows[:20]
             )
-        text += '\n\nУправление: /set_limit <id> <40..150>, /sleep_account <id> <minutes>, /upload_account'
+        text += '\n\nУправление: /set_limit <id> <40..150>, /sleep_account <id> <minutes>, /set_proxy <id> <ip:port:login:password>, /add_group <reference|monitor> <link_or_id> [cluster_id], /upload_account'
         await callback.message.edit_text(text, reply_markup=main_menu())
         await callback.answer()
 
