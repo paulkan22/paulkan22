@@ -23,9 +23,16 @@ class Settings(BaseSettings):
     telethon_mode: str = 'mock'  # mock | live
     monitor_source_mode: str = 'mock'  # mock | live
 
+
+    max_groups_per_cycle: int = 20
+    max_candidates_per_group: int = 200
+    inter_group_delay_min_seconds: int = 2
+    inter_group_delay_max_seconds: int = 8
+
     backup_enabled: bool = True
     backup_every_hours: int = 24
     backup_output_dir: str = 'data/backups'
+    backup_retention_days: int = 14
 
     health_check_every_minutes: int = 30
 

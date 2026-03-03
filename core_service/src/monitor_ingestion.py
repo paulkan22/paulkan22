@@ -1,20 +1,14 @@
 import asyncio
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from random import randint
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .monitor_analysis import MessageSample, choose_monitor_parse_mode
+from .proxy_utils import parse_socks5_proxy
 from .repository import enqueue_mutual_task, list_monitor_groups, pick_available_account, touch_group_scraped
 from .runtime_state import RuntimeState
-from .proxy_utils import parse_socks5_proxy
-
-
-@dataclass
-class MonitorCandidate:
-    user_id: int
-    priority: int = 0
+from .monitor_utils import MonitorCandidate, cap_candidates
 
 
 class MonitorSource:
@@ -33,8 +27,10 @@ class MockMonitorSource(MonitorSource):
 
 
 class TelethonMonitorSource(MonitorSource):
-    def __init__(self, session_factory: async_sessionmaker):
+    def __init__(self, session_factory: async_sessionmaker, message_limit_full: int = 1000, message_limit_recent: int = 200):
         self.session_factory = session_factory
+        self.message_limit_full = message_limit_full
+        self.message_limit_recent = message_limit_recent
 
     async def collect(self, group_id: int, parse_mode: str, cluster_id: int | None) -> list[MonitorCandidate]:
         from telethon import TelegramClient
@@ -55,7 +51,7 @@ class TelethonMonitorSource(MonitorSource):
                     if getattr(participant, 'id', None):
                         users.append(int(participant.id))
             else:
-                limit = 1000 if parse_mode == 'messages_full_history' else 200
+                limit = self.message_limit_full if parse_mode == 'messages_full_history' else self.message_limit_recent
                 async for message in client.iter_messages(entity, limit=limit):
                     sender_id = getattr(message, 'sender_id', None)
                     if sender_id:
@@ -72,20 +68,34 @@ def _synthetic_messages() -> list[MessageSample]:
     return [MessageSample(user_id=(idx % 18) + 1, sent_at=start + timedelta(minutes=idx)) for idx in range(36)]
 
 
-async def run_monitor_ingestion_once(session_factory: async_sessionmaker, source: MonitorSource) -> int:
+async def run_monitor_ingestion_once(
+    session_factory: async_sessionmaker,
+    source: MonitorSource,
+    max_groups_per_cycle: int,
+    max_candidates_per_group: int,
+    inter_group_delay_min_seconds: int,
+    inter_group_delay_max_seconds: int,
+) -> int:
     queued = 0
     async with session_factory() as session:
         groups = await list_monitor_groups(session)
-        for group in groups:
+        groups = groups[:max_groups_per_cycle] if max_groups_per_cycle > 0 else groups
+
+        for idx, group in enumerate(groups):
             decision = choose_monitor_parse_mode(
                 members_open=(group.status or '').upper() == 'OPEN',
                 messages=_synthetic_messages(),
             )
             candidates = await source.collect(group.group_id, decision.parse_mode, group.cluster_id)
+            candidates = cap_candidates(candidates, max_candidates_per_group)
             for candidate in candidates:
                 await enqueue_mutual_task(session, candidate.user_id, group.cluster_id, candidate.priority)
                 queued += 1
             await touch_group_scraped(session, group.group_id)
+
+            if idx < len(groups) - 1:
+                await asyncio.sleep(randint(inter_group_delay_min_seconds, inter_group_delay_max_seconds))
+
         await session.commit()
     return queued
 
@@ -96,8 +106,19 @@ async def run_monitor_ingestion_loop(
     state: RuntimeState,
     scan_min_minutes: int,
     scan_max_minutes: int,
+    max_groups_per_cycle: int,
+    max_candidates_per_group: int,
+    inter_group_delay_min_seconds: int,
+    inter_group_delay_max_seconds: int,
 ) -> None:
     while True:
         if await state.is_running():
-            await run_monitor_ingestion_once(session_factory, source)
+            await run_monitor_ingestion_once(
+                session_factory,
+                source,
+                max_groups_per_cycle,
+                max_candidates_per_group,
+                inter_group_delay_min_seconds,
+                inter_group_delay_max_seconds,
+            )
         await asyncio.sleep(randint(scan_min_minutes * 60, scan_max_minutes * 60))

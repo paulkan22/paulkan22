@@ -73,6 +73,7 @@ async def run() -> None:
                 settings.database_url,
                 every_hours=settings.backup_every_hours,
                 output_dir=settings.backup_output_dir,
+                retention_days=settings.backup_retention_days,
             )
         )
 

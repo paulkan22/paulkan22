@@ -1,10 +1,10 @@
 import asyncio
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from .backup_utils import prune_old_backups
 from .repository import record_backup_run
 
 
@@ -13,7 +13,6 @@ async def run_backup_once(session_factory: async_sessionmaker, database_url: str
     ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     outfile = output_dir / f'pg_backup_{ts}.sql'
 
-    # Prefer pg_dump binary if available.
     cmd = f"pg_dump '{database_url}' > '{outfile}'"
     proc = await asyncio.create_subprocess_shell(cmd)
     code = await proc.wait()
@@ -26,13 +25,32 @@ async def run_backup_once(session_factory: async_sessionmaker, database_url: str
         await session.commit()
 
 
+async def restore_backup_once(session_factory: async_sessionmaker, database_url: str, backup_file: Path) -> None:
+    cmd = f"psql '{database_url}' < '{backup_file}'"
+    proc = await asyncio.create_subprocess_shell(cmd)
+    code = await proc.wait()
+
+    async with session_factory() as session:
+        if code == 0:
+            await record_backup_run(session, 'restore_ok', str(backup_file))
+        else:
+            await record_backup_run(session, 'restore_failed', f'{backup_file}: exit={code}')
+        await session.commit()
+
+
 async def run_backup_loop(
     session_factory: async_sessionmaker,
     database_url: str,
     every_hours: int = 24,
     output_dir: str = 'data/backups',
+    retention_days: int = 14,
 ) -> None:
     target = Path(output_dir)
     while True:
         await run_backup_once(session_factory, database_url, target)
+        removed = prune_old_backups(target, retention_days)
+        if removed:
+            async with session_factory() as session:
+                await record_backup_run(session, 'retention_cleanup', f'removed={removed}')
+                await session.commit()
         await asyncio.sleep(max(1, every_hours) * 3600)

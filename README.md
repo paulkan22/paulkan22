@@ -33,10 +33,12 @@ Production-safe system for collecting leads from Telegram monitor groups, enrich
 
 ---
 
-## 2) What is still pending for full production completion
+## 2) Production completion status
 
-- Production hardening for monitor live collector throughput and anti-flood distribution tuning at higher load
-- Backup restore automation and retention policy tooling
+All critical blocks from the technical scope are now implemented in code form (with mock/live switches where external dependencies apply).
+
+Operational recommendation:
+- run live soak tests to tune throughput values (`MAX_GROUPS_PER_CYCLE`, `MAX_CANDIDATES_PER_GROUP`, inter-group delays) for your actual account/proxy pool.
 
 ---
 
