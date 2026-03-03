@@ -27,4 +27,6 @@ class Settings(BaseSettings):
     backup_every_hours: int = 24
     backup_output_dir: str = 'data/backups'
 
+    health_check_every_minutes: int = 30
+
     worker_tick_seconds: int = Field(default=5, ge=1)

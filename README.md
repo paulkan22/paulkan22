@@ -25,6 +25,7 @@ Production-safe system for collecting leads from Telegram monitor groups, enrich
 - Telethon mutual engine mode (`TELETHON_MODE=live`) + safe mock fallback mode
 - Background monitor-ingestion loop that enqueues mutual tasks from monitor groups (mock/live source modes)
 - Automated backup loop with DB-tracked backup runs
+- Periodic live account health-check loop (authorization/status sync)
 
 ### Infrastructure
 - Docker Compose with `postgres`, `redis`, `bot_service`, `core_service`
@@ -34,8 +35,8 @@ Production-safe system for collecting leads from Telegram monitor groups, enrich
 
 ## 2) What is still pending for full production completion
 
-- Production hardening for live Telethon mode (session health checks, retry matrix, richer flood taxonomies)
-- Production hardening for monitor live collector throughput and anti-flood distribution tuning
+- Production hardening for monitor live collector throughput and anti-flood distribution tuning at higher load
+- Backup restore automation and retention policy tooling
 
 ---
 

@@ -5,6 +5,7 @@ from random import randint
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .balancer import AccountRuntime, DynamicLimitPolicy
+from .flood_control import classify_flood
 from .repository import (
     acquire_next_task,
     get_reference_groups_count,
@@ -92,10 +93,13 @@ async def run_worker(
                 runtime = policy.reward_stable_period(runtime)
             except FloodWaitError as flood:
                 await requeue_task(session, task)
-                if flood.wait_seconds < 600:
+                decision = classify_flood(flood.wait_seconds)
+                if decision.severity == 'small':
                     runtime = policy.on_small_flood(runtime)
+                elif decision.severity == 'medium':
+                    runtime = policy.on_long_flood(runtime, decision.cooldown_seconds)
                 else:
-                    runtime = policy.on_long_flood(runtime, flood.wait_seconds)
+                    runtime = policy.on_long_flood(runtime, decision.cooldown_seconds)
             except Exception:
                 await requeue_task(session, task)
                 runtime = policy.on_small_flood(runtime)

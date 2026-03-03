@@ -2,6 +2,7 @@ import asyncio
 
 from redis.asyncio import Redis
 
+from .account_health import run_account_health_loop
 from .backup_runner import run_backup_loop
 from .balancer import DynamicLimitPolicy
 from .config import Settings
@@ -57,6 +58,12 @@ async def run() -> None:
             state,
             settings.monitor_scan_minutes_min,
             settings.monitor_scan_minutes_max,
+        ),
+        run_account_health_loop(
+            session_factory,
+            state,
+            every_minutes=settings.health_check_every_minutes,
+            live_mode=settings.telethon_mode == 'live',
         ),
     ]
     if settings.backup_enabled:

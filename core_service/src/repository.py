@@ -53,6 +53,12 @@ async def touch_group_scraped(session: AsyncSession, group_id: int) -> None:
     await session.execute(stmt)
 
 
+
+
+async def list_accounts(session: AsyncSession) -> list[Account]:
+    return list((await session.scalars(select(Account))).all())
+
+
 async def pick_available_account(session: AsyncSession, cluster_id: int | None) -> Account | None:
     now = datetime.now(timezone.utc)
     stmt: Select[tuple[Account]] = (
